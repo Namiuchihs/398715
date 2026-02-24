@@ -1,0 +1,45 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Home</title>
+<style>
+body { font-family: Arial; background:#f5f5f5; }
+#videoList { display:grid; grid-template-columns:repeat(auto-fill,300px); gap:20px; padding:20px; }
+.card { background:white; padding:10px; border-radius:8px; }
+video { width:100%; }
+</style>
+</head>
+<body>
+
+<h2>Video Home</h2>
+<div id="videoList"></div>
+
+<script>
+const user = localStorage.getItem("user");
+if(!user){ location.href="login.html"; }
+
+async function load(){
+ const res = await fetch("http://localhost:3000/recommend-ai/" + user);
+ const videos = await res.json();
+ const list = document.getElementById("videoList");
+ list.innerHTML="";
+ videos.forEach(v=>{
+   const d=document.createElement("div");
+   d.className="card";
+   d.innerHTML=`
+   <a href="video.html?id=${v.id}">
+   <video muted src="http://localhost:3000/uploads/${v.filename}"></video>
+   </a>
+   <p>${v.title}</p>
+   <p>Views: ${v.views}</p>
+   `;
+   list.appendChild(d);
+ });
+}
+load();
+</script>
+
+</body>
+</html>
