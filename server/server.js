@@ -13,16 +13,18 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// ===== Upload folder (本番対応) =====
+// ===== Upload folder =====
 const uploadDir = path.join(__dirname, "uploads");
+
+// フォルダがなければ作成（Render対応）
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
 
-// 公開
+// アップロード動画公開
 app.use("/uploads", express.static(uploadDir));
 
-// フロント公開（clientフォルダ）
+// ===== Front公開 =====
 app.use(express.static(path.join(__dirname, "../client")));
 
 // ===== Database =====
@@ -64,10 +66,12 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 100 * 1024 * 1024 } // 100MB制限
+  limits: { fileSize: 100 * 1024 * 1024 } // 100MB
 });
 
 // ===== Auth =====
+
+// 新規登録
 app.post("/register", (req, res) => {
   const { username, password } = req.body;
 
@@ -81,6 +85,7 @@ app.post("/register", (req, res) => {
   );
 });
 
+// ログイン
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
 
@@ -96,6 +101,8 @@ app.post("/login", (req, res) => {
 
 // ===== Video Upload =====
 app.post("/upload", upload.single("video"), (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "No file" });
+
   const { title, tags } = req.body;
   const filename = req.file.filename;
 
@@ -103,7 +110,7 @@ app.post("/upload", upload.single("video"), (req, res) => {
     "INSERT INTO videos (title, filename, tags) VALUES (?, ?, ?)",
     [title, filename, tags],
     function (err) {
-      if (err) return res.status(500).send(err);
+      if (err) return res.status(500).json(err);
       res.json({ id: this.lastID });
     }
   );
@@ -134,11 +141,13 @@ app.post("/watch", (req, res) => {
 // ===== AI Recommend =====
 app.get("/recommend-ai/:user_id", (req, res) => {
   const userId = req.params.user_id;
-
   const aiPath = path.join(__dirname, "ai.py");
 
   exec(`python ${aiPath} ${userId}`, (err, stdout) => {
-    if (err) return res.json([]);
+    if (err) {
+      console.log("AI error:", err);
+      return res.json([]);
+    }
 
     const ids = stdout.trim();
     if (!ids) return res.json([]);
@@ -150,8 +159,8 @@ app.get("/recommend-ai/:user_id", (req, res) => {
   });
 });
 
-// ===== Front fallback（SPA対応） =====
-app.get("*", (req, res) => {
+// ===== SPA Fallback（Node22対応・重要）=====
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, "../client/index.html"));
 });
 
